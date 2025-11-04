@@ -36,6 +36,15 @@ python minimize_html.py "00.html" --mode minify -o "00.min.html"
 - Odstraní komentáře a zbytečná bílá místa.
 - Neodstraňuje obsahové prvky (text otázek/odpovědí zůstává 1:1).
 
+#### Výchozí odstranění layoutových sloupců
+- Ve výchozím stavu jsou z výsledku odstraněny prvky s klasami `reader_column left_column` a `reader_column right_column` (typické layoutové sloupce čtečky).
+- Pokud je chcete zachovat, přidejte přepínač `--keep-reader-columns`.
+
+Příklad ponechání sloupců v módu minify:
+```powershell
+python minimize_html.py "00.html" --mode minify --keep-reader-columns -o "00.min.keepcols.html"
+```
+
 ### Agresivní odlehčení (ponechá text, odstraní nesdělovací prvky)
 ```powershell
 # ponechá obrázky, ale vyčistí velká data URI
@@ -59,6 +68,11 @@ Tato volba nahradí `input type="checkbox"`/`radio` textovými značkami, např.
 - radio: `(•)` nebo `( )`
 Tak zůstane vidět, které odpovědi byly označené/správné, i bez CSS/JS.
 
+Chcete‑li v agresivním režimu zachovat layoutové sloupce čtečky, použijte:
+```powershell
+python minimize_html.py "00.html" --mode aggressive --keep-reader-columns -o "00.aggressive.keepcols.html"
+```
+
 ## Hromadné zpracování všech HTML v adresáři
 Minifikace všech `.html` souborů:
 ```powershell
@@ -77,6 +91,7 @@ Get-ChildItem -File -Filter *.html | ForEach-Object {
 - Pro čisté zmenšení bez změny obsahu používejte `--mode minify`.
 - Pokud vám stačí čistý text (např. otázky/odpovědi) a nepotřebujete skripty/styl, použijte `--mode aggressive`.
 - Výstupní soubor lze určit `-o`. Pokud jej neuvedete, skript vytvoří soubor s příponou podle módu (např. `soubor.minify.html`).
+- Výchozí chování: prvky s třídami `reader_column left_column` a `reader_column right_column` jsou odstraněny. Zachování vynutíte pomocí `--keep-reader-columns`.
 
 ## Soubory v projektu
 - `minimize_html.py` – hlavní skript

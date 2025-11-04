@@ -131,9 +131,25 @@ def analyze_html(html: str) -> SizeReport:
     )
 
 
-def minify_only(html: str) -> str:
+def _remove_reader_columns(soup: BeautifulSoup) -> None:
+    """Remove elements that are typical reader layout columns.
+
+    Specifically drops elements that have classes:
+    - reader_column left_column
+    - reader_column right_column
+    """
+    # Use CSS selectors to target elements that have both classes
+    for el in soup.select('.reader_column.left_column, .reader_column.right_column'):
+        el.decompose()
+
+
+def minify_only(html: str, remove_reader_columns: bool = True) -> str:
+    # Parse first so we can optionally drop layout columns before minifying
+    soup = BeautifulSoup(html, 'lxml')
+    if remove_reader_columns:
+        _remove_reader_columns(soup)
     return minify(
-        html,
+        str(soup),
         remove_comments=True,
         remove_empty_space=True,
         reduce_boolean_attributes=True,
@@ -142,7 +158,7 @@ def minify_only(html: str) -> str:
     )
 
 
-def strip_nontext(html: str, keep_images: bool = True, flatten_inputs: bool = False) -> str:
+def strip_nontext(html: str, keep_images: bool = True, flatten_inputs: bool = False, remove_reader_columns: bool = True) -> str:
     """
     Aggressive: remove <script>, <style>, link[rel=stylesheet], inline event handlers,
     tracking iframes, etc., while keeping textual content. Optionally keep images.
@@ -245,11 +261,15 @@ def strip_nontext(html: str, keep_images: bool = True, flatten_inputs: bool = Fa
             # drop the visual marker span
             marker.decompose()
 
+    # Remove typical reader layout columns unless explicitly kept
+    if remove_reader_columns:
+        _remove_reader_columns(soup)
+
     # Finally, minify the result to collapse whitespace
-    return minify_only(str(soup))
+    return minify_only(str(soup), remove_reader_columns=False)
 
 
-def process_file(path: str, mode: str, output: str = None, keep_images: bool = True, flatten_inputs: bool = False) -> Tuple[SizeReport, str, str]:
+def process_file(path: str, mode: str, output: str = None, keep_images: bool = True, flatten_inputs: bool = False, remove_reader_columns: bool = True) -> Tuple[SizeReport, str, str]:
     with open(path, 'r', encoding='utf-8', errors='ignore') as f:
         html = f.read()
     report = analyze_html(html)
@@ -257,9 +277,9 @@ def process_file(path: str, mode: str, output: str = None, keep_images: bool = T
     if mode == 'analyze':
         return report, path, None
     elif mode == 'minify':
-        out_html = minify_only(html)
+        out_html = minify_only(html, remove_reader_columns=remove_reader_columns)
     elif mode == 'aggressive':
-        out_html = strip_nontext(html, keep_images=keep_images, flatten_inputs=flatten_inputs)
+        out_html = strip_nontext(html, keep_images=keep_images, flatten_inputs=flatten_inputs, remove_reader_columns=remove_reader_columns)
     else:
         raise ValueError('Unknown mode')
 
@@ -281,6 +301,7 @@ def main():
     parser.add_argument('-o', '--output', help='Output file path (for minify/aggressive modes)')
     parser.add_argument('--keep-images', action='store_true', help='In aggressive mode, keep <img> elements (strip data URIs)')
     parser.add_argument('--flatten-inputs', action='store_true', help='In aggressive mode, convert checkbox/radio inputs to plain text markers preserving checked state')
+    parser.add_argument('--keep-reader-columns', action='store_true', help='Keep elements with classes "reader_column left_column/right_column" (by default they are removed)')
 
     args = parser.parse_args()
 
@@ -294,6 +315,7 @@ def main():
         args.output,
         keep_images=args.keep_images,
         flatten_inputs=args.flatten_inputs,
+        remove_reader_columns=not args.keep_reader_columns,
     )
 
     print('=== Analysis ===')
